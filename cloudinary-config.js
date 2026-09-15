@@ -7,6 +7,6 @@
 // 4. Paste both values below.
 
 const cloudinaryConfig = {
-  cloudName: "r3yn71ct",
-  uploadPreset: "r3yn71ct"
+  cloudName: "PASTE_YOUR_CLOUD_NAME",
+  uploadPreset: "PASTE_YOUR_UPLOAD_PRESET"
 };

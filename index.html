@@ -12,13 +12,14 @@
 
 <div class="bg-dots"></div>
 <div class="petals" id="petals"></div>
+<div class="clouds" id="clouds"></div>
 <div class="hydrangea bl" id="hydrangeaBL"></div>
 <div class="hydrangea tr" id="hydrangeaTR"></div>
 
 <div id="loginScreen" class="loginform">
   <div class="lic" id="loginIcon"></div>
   <h3>sign in to your vault</h3>
-  <p style="color:var(--ink-light);font-size:12.5px;margin:-4px 0 14px;">Enter ID</p>
+  <p style="color:var(--ink-light);font-size:12.5px;margin:-4px 0 14px;">only the two IDs you two made up can get in — no real email needed.</p>
   <input type="email" id="loginEmail" placeholder="Enter ID" autocomplete="username">
   <input type="password" id="loginPassword" placeholder="password" autocomplete="current-password">
   <button class="addbtn" id="loginBtn"></button>
@@ -44,6 +45,7 @@
 <div id="lightbox"><button class="close"></button><div id="lightboxInner"></div></div>
 <div id="letterOverlay"><div id="letterInner"></div></div>
 <div class="savedflag" id="savedFlag"></div>
+<button id="saveNowBtn" class="savenowbtn"></button>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>

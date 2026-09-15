@@ -24,7 +24,8 @@ const ICON_PATHS = {
   pen:'<path d="M11.4 19.6H21"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.9 18.1l-4.3 1 1-4.3z"/>',
   menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
   lock:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 8.4 0v3"/>',
-  lockOpen:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 7.7-2.3"/>'
+  lockOpen:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 7.7-2.3"/>',
+  save:'<circle cx="12" cy="12" r="9.2"/><path d="M7.8 12.4l2.6 2.6 5.6-6"/>'
 };
 /* ============================================================
    ★ EDIT YOUR NAMES HERE ★ — this is the only place you need to
@@ -34,7 +35,7 @@ const ICON_PATHS = {
 ============================================================ */
 const NAMES = {
   Mine: 'Jae',        // <-- change to your name
-  Hers: 'Mai'    // <-- change to her name
+  Hers: 'Mai'         // <-- change to her name
 };
 function dispName(key){ return NAMES[key] || key; }
 
@@ -68,39 +69,79 @@ function buildPetals(){
     wrap.appendChild(p);
   }
 }
-// a single hydrangea "floret" — four small petal-ellipses around a tiny center
-function floretSVG(cx,cy,scale,hue){
-  const c1=hue==='light'?'#ffe3ee':'#ffc7de';
-  const c2=hue==='light'?'#ffd0e2':'#ff9dc4';
-  const petal=(rot)=>`<ellipse cx="0" cy="-3.6" rx="2.6" ry="3.6" fill="${c1}" stroke="${c2}" stroke-width=".3" transform="rotate(${rot})"/>`;
+// a single 5-petal cherry blossom flower
+function blossomSVG(cx,cy,scale,rotate){
+  const petal=(i)=>{
+    const rot=i*72+(rotate||0);
+    return `<ellipse cx="0" cy="-3" rx="2" ry="2.9" fill="#ffdcea" stroke="#ff9dc4" stroke-width=".25" transform="rotate(${rot})"/>`;
+  };
+  let petals='';
+  for(let i=0;i<5;i++) petals+=petal(i);
+  return `<g transform="translate(${cx} ${cy}) scale(${scale})">${petals}<circle cx="0" cy="0" r="0.9" fill="#ff6fa8"/></g>`;
+}
+// a small cluster of 2-3 blossoms + a bud, like a twig tip
+function blossomCluster(cx,cy,scale){
   return `<g transform="translate(${cx} ${cy}) scale(${scale})">
-    ${petal(0)}${petal(90)}${petal(180)}${petal(270)}
-    <circle cx="0" cy="0" r="1.1" fill="#ffb6d3"/>
+    ${blossomSVG(-3,-2,.9,10)}
+    ${blossomSVG(3,1,.75,50)}
+    ${blossomSVG(0,-6,.6,-20)}
+    <circle cx="6" cy="-4" r="1" fill="#ffb6d3"/>
   </g>`;
 }
-// a cluster of florets arranged in a dome, like a real hydrangea bloom
-function hydrangeaCluster(){
-  const florets=[];
-  const positions=[
-    [0,0,1,'deep'],[10,-6,.85,'light'],[-10,-4,.85,'deep'],[8,8,.8,'light'],[-9,9,.85,'deep'],
-    [0,-13,.75,'light'],[15,4,.7,'deep'],[-15,3,.7,'light'],[3,15,.7,'deep'],[-4,-14,.65,'light'],
-    [16,-9,.6,'light'],[-16,-8,.6,'deep']
-  ];
-  positions.forEach(([x,y,s,h])=>florets.push(floretSVG(x,y,s,h)));
-  return florets.join('');
+// one branch, drawn as if growing up out of the bottom-left corner
+function branchSVG(){
+  return `
+    <path d="M0,220 C38,192 28,152 68,132 C98,117 88,92 128,72 C148,62 148,42 168,22"
+      stroke="#c9a3ad" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <path d="M68,132 C52,114 38,108 22,98" stroke="#c9a3ad" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M128,72 C144,58 158,58 174,48" stroke="#c9a3ad" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M100,100 C90,88 78,86 66,80" stroke="#c9a3ad" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    ${blossomCluster(30,150,1)}
+    ${blossomCluster(55,138,.85)}
+    ${blossomCluster(20,96,.9)}
+    ${blossomCluster(70,128,.8)}
+    ${blossomCluster(95,98,.85)}
+    ${blossomCluster(66,78,.7)}
+    ${blossomCluster(128,70,1)}
+    ${blossomCluster(148,60,.85)}
+    ${blossomCluster(174,46,.9)}
+    ${blossomCluster(168,20,.8)}
+    ${blossomSVG(45,145,.7,30)}
+    ${blossomSVG(110,85,.6,-15)}
+    ${blossomSVG(155,35,.6,40)}
+  `;
 }
-function buildHydrangeas(){
+function buildBranches(){
   const bl=document.getElementById('hydrangeaBL');
   const tr=document.getElementById('hydrangeaTR');
-  const svg=(vb)=>`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">
-      <g transform="translate(35 35)">${hydrangeaCluster()}</g>
-      <g transform="translate(60 60) scale(.6)">${hydrangeaCluster()}</g>
-      <g transform="translate(10 65) scale(.5)">${hydrangeaCluster()}</g>
-    </svg>`;
-  if(bl) bl.innerHTML=svg('-20 -20 120 120');
-  if(tr) tr.innerHTML=svg('-20 -20 120 120');
+  // bottom-left: branch as drawn (grows up from that corner)
+  if(bl) bl.innerHTML=`<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">${branchSVG()}</svg>`;
+  // top-right: same branch, rotated 180° inside the SVG so it grows down from that corner instead
+  if(tr) tr.innerHTML=`<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(180 110 110)">${branchSVG()}</g></svg>`;
 }
-document.addEventListener('DOMContentLoaded',()=>{ buildPetals(); buildHydrangeas(); });
+// soft drifting clouds along the lower part of the screen
+function buildClouds(){
+  const wrap=document.getElementById('clouds');
+  if(!wrap) return;
+  const count=5;
+  for(let i=0;i<count;i++){
+    const c=document.createElement('div');
+    c.className='cloud';
+    const w=120+Math.random()*140;
+    const h=w*(.32+Math.random()*.12);
+    const top=55+Math.random()*38; // lower portion of the viewport, as "atmosphere"
+    const duration=55+Math.random()*40;
+    const delay=-(Math.random()*duration);
+    c.style.width=w+'px';
+    c.style.height=h+'px';
+    c.style.top=top+'vh';
+    c.style.animationDuration=duration+'s';
+    c.style.animationDelay=delay+'s';
+    wrap.appendChild(c);
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{ buildPetals(); buildBranches(); buildClouds(); });
+
 
 /* ============================================================
    FIREBASE — real backend so both of you sync in real time.
@@ -202,6 +243,24 @@ function scheduleSave(){
   },600);
 }
 
+// Manually force-save right now (used by the Save button) — skips the debounce delay entirely.
+async function saveNow(){
+  clearTimeout(saveTimer);
+  const btn=document.getElementById('saveNowBtn');
+  if(btn) btn.classList.add('saving');
+  const payload=JSON.stringify(root);
+  lastPayload=payload;
+  try{
+    await dbFs.collection('vault').doc('root').set({payload, updatedAt:Date.now()});
+    flashSaved();
+  }catch(e){
+    console.error(e);
+    alert('Could not save — check your internet connection. ('+e.message+')');
+  }finally{
+    if(btn) btn.classList.remove('saving');
+  }
+}
+
 function startApp(){
   buildNav();
   if(unsubscribeSnapshot) unsubscribeSnapshot();
@@ -295,10 +354,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loginIcon').innerHTML=icon('lock');
   document.getElementById('loginBtn').innerHTML=icon('lockOpen')+'sign in';
   document.getElementById('logoutBtn').innerHTML=icon('close')+'log out';
+  document.getElementById('saveNowBtn').innerHTML=icon('save')+'<span>save</span>';
 
   document.getElementById('loginBtn').onclick=doLogin;
   document.getElementById('loginPassword').onkeydown=(e)=>{ if(e.key==='Enter') doLogin(); };
   document.getElementById('logoutBtn').onclick=()=>{ auth.signOut(); };
+  document.getElementById('saveNowBtn').onclick=saveNow;
 
   document.getElementById('menuToggle').innerHTML=icon('menu');
   document.getElementById('menuToggle').onclick=()=>{
@@ -309,12 +370,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(user){
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('appWrap').style.display='';
+      document.getElementById('saveNowBtn').style.display='';
       document.getElementById('userTag').textContent=user.email;
       startApp();
     } else {
       stopApp();
       document.getElementById('loginScreen').style.display='';
       document.getElementById('appWrap').style.display='none';
+      document.getElementById('saveNowBtn').style.display='none';
       document.getElementById('loginPassword').value='';
     }
   });
@@ -398,7 +461,7 @@ function favoritesGrid(container, favArr, rerenderFn){
 function repeatableList(container, arr, opts, rerenderFn){
   opts = opts||{};
   if(arr.length===0){
-    container.appendChild(el('p','emptynote','nothing here yet — start adding our memories ♡'));
+    container.appendChild(el('p','emptynote','nothing here yet — start adding your memories ♡'));
   }
   arr.forEach((item,idx)=>{
     const box=el('div','listitem');
@@ -502,7 +565,7 @@ function route(id){
 const RENDERERS={
   home:(page)=>{
     const intro=el('div','introcard');
-    intro.innerHTML=`<h2>welcome back, ${dispName('Jae')} & ${dispName('Mai')} ♡</h2><p>a little home for everything the two of us are building together.</p>`;
+    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of you are building together.</p>`;
     page.appendChild(intro);
     const grid=el('div','homegrid');
     const cards=[
@@ -524,7 +587,7 @@ const RENDERERS={
   },
 
   info:(page)=>{
-    page.appendChild(head('Information Vault','everything about the two of us, side by side.','letterHeart'));
+    page.appendChild(head('Information Vault','everything about the two of you, side by side.','letterHeart'));
     let who = UI.infoWho;
     const pills=pillTabs(who, (w)=>{ UI.infoWho=w; route('info'); });
     page.appendChild(pills);
@@ -549,14 +612,14 @@ const RENDERERS={
   letters:(page)=>{ renderLetters(page); },
 
   collections:(page)=>{
-    page.appendChild(head('Our Collections','the things we both love to gather.','gift'));
+    page.appendChild(head('Our Collections','the things you each love to gather.','gift'));
     let who=UI.collectionsWho;
     page.appendChild(pillTabs(who,(w)=>{UI.collectionsWho=w; route('collections');}));
     repeatableList(page, root.collections[who], {addLabel:'add item', itemPlaceholder:'collection item...'}, ()=>route('collections'));
   },
 
   money:(page)=>{
-    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else we spend on together.','wallet'));
+    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else you spend on together.','wallet'));
     repeatableList(page, root.money, {addLabel:'add category', itemPlaceholder:'e.g. Hobbies, Games...'}, ()=>route('money'));
   },
 
@@ -570,7 +633,7 @@ const RENDERERS={
   traveled:(page)=>{
     if(!root.pin){ page.appendChild(lockScreen('setup')); return; }
     if(!travelUnlocked){ page.appendChild(lockScreen('enter')); return; }
-    page.appendChild(head('Places / Countries Traveled','unlocked — our travel memories together.','lockOpen'));
+    page.appendChild(head('Places / Countries Traveled','unlocked — your travel memories together.','lockOpen'));
     repeatableList(page, root.traveled, {addLabel:'add place', itemPlaceholder:'place / country...'}, ()=>route('traveled'));
     const relock=el('button','tinylink','lock this section again');
     relock.style.display='block';
