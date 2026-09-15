@@ -502,7 +502,7 @@ function route(id){
 const RENDERERS={
   home:(page)=>{
     const intro=el('div','introcard');
-    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of you are building together.</p>`;
+    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of us are building together.</p>`;
     page.appendChild(intro);
     const grid=el('div','homegrid');
     const cards=[
