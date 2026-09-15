@@ -17,8 +17,9 @@ button anywhere in the app.
 ## 3. Turn on Authentication (Email/Password)
 1. In the left sidebar, go to **Build > Authentication > Get started**.
 2. Under **Sign-in method**, enable **Email/Password**.
-3. Go to the **Users** tab and click **Add user** — add your email + a password.
-4. Repeat to add your partner's email + password.
+3. Go to the **Users** tab and click **Add user**. The "email" field just needs to look like an email (`something@something.something`) — it doesn't have to be real or receive mail. If you'd rather not use real Gmail addresses, make something up, e.g. `jae@ourmemoryvault.local`, and set a password.
+4. Repeat with a different made-up ID for your partner (e.g. `her-name@ourmemoryvault.local`) + her own password.
+   (These made-up IDs are the *only* two accounts that will ever be able to open the vault. Since they're not real inboxes, there's no "forgot password" email recovery — write both down somewhere safe.)
    (These are the *only* two accounts that will ever be able to open the vault.)
 
 ## 4. Turn on Firestore (the database)
