@@ -1,15 +1,11 @@
-// 1. Go to https://console.firebase.google.com and create a free project.
-// 2. In your project, click the "</>" (web app) icon to register a web app.
-// 3. Firebase will show you a config object — copy your real values into the object below.
-// 4. Save this file. Do not share it publicly if you'd rather keep the project id private,
-//    though these values alone don't grant access — your Firestore/Storage security rules
-//    (see SETUP.md) are what actually keep the vault private to just the two of you.
+// Your real Firebase project config — matches the compat SDK loaded in index.html.
+// (Note: no "import" statements here — this file is loaded as a plain <script>, not a module.)
 
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID"
+  apiKey: "AIzaSyBP9fxeA-VE3KHT7PJMiOoXJ2vhHuU-fpA",
+  authDomain: "our-memory-vault-6d42c.firebaseapp.com",
+  projectId: "our-memory-vault-6d42c",
+  storageBucket: "our-memory-vault-6d42c.firebasestorage.app",
+  messagingSenderId: "339072658660",
+  appId: "1:339072658660:web:5cd442b95f3937d01ad0f1"
 };
