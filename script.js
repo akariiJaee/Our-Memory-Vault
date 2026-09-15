@@ -34,7 +34,7 @@ const ICON_PATHS = {
 ============================================================ */
 const NAMES = {
   Mine: 'Jae',        // <-- change to your name
-  Hers: 'Mai'    // <-- change to her name
+  Hers: 'Her Name'    // <-- change to her name
 };
 function dispName(key){ return NAMES[key] || key; }
 
@@ -109,7 +109,8 @@ document.addEventListener('DOMContentLoaded',()=>{ buildPetals(); buildHydrangea
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const dbFs = firebase.firestore();
-const storage = firebase.storage();
+// Photos/videos go through Cloudinary (see cloudinary-config.js) instead of
+// Firebase Storage, so no billing card is required for this project.
 
 let root, saveTimer;
 let lastPayload = null;
@@ -262,8 +263,7 @@ function mediaThumb(item, mediaArr, idx, onDelete){
   const del=el('button','del',icon('trash'));
   del.onclick=(e)=>{
     e.stopPropagation();
-    mediaArr.splice(idx,1);
-    if(item.path){ storage.ref().child(item.path).delete().catch(()=>{}); }
+    mediaArr.splice(idx,1); // removes it from your vault's view; the file itself stays on Cloudinary's free tier (harmless, doesn't count against your visible gallery)
     onDelete();
   };
   t.appendChild(del);
@@ -335,11 +335,13 @@ function renderGallery(container, mediaArr, rerenderFn){
     for(const f of files){
       try{
         const mediaId=uid();
-        const path='media/'+mediaId+'-'+encodeURIComponent(f.name||'file');
-        const ref=storage.ref().child(path);
-        await ref.put(f);
-        const url=await ref.getDownloadURL();
-        mediaArr.push({id:mediaId, url, path, type:f.type||'image/*', name:f.name});
+        const fd=new FormData();
+        fd.append('file', f);
+        fd.append('upload_preset', cloudinaryConfig.uploadPreset);
+        const res=await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/auto/upload`,{method:'POST',body:fd});
+        const data=await res.json();
+        if(!res.ok){ throw new Error((data.error && data.error.message) || 'upload failed'); }
+        mediaArr.push({id:mediaId, url:data.secure_url, publicId:data.public_id, type:f.type||'image/*', name:f.name});
       }catch(err){
         alert('Upload failed for '+f.name+': '+err.message);
       }
