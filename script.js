@@ -26,6 +26,18 @@ const ICON_PATHS = {
   lock:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 8.4 0v3"/>',
   lockOpen:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 7.7-2.3"/>'
 };
+/* ============================================================
+   ★ EDIT YOUR NAMES HERE ★ — this is the only place you need to
+   change to show your real names everywhere instead of "Mine"/"Hers".
+   (Internally the app still uses "Mine"/"Hers" as data keys, so your
+   saved info stays safe — this only changes what's displayed.)
+============================================================ */
+const NAMES = {
+  Mine: 'Jae',        // <-- change to your name
+  Hers: 'Her Name'    // <-- change to her name
+};
+function dispName(key){ return NAMES[key] || key; }
+
 function icon(name,cls){
   const p=ICON_PATHS[name]||ICON_PATHS.star;
   return `<span class="ico ${cls||''}"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg></span>`;
@@ -488,7 +500,7 @@ function route(id){
 const RENDERERS={
   home:(page)=>{
     const intro=el('div','introcard');
-    intro.innerHTML=`<h2>welcome back, you two ♡</h2><p>a little home for everything the two of you are building together.</p>`;
+    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of you are building together.</p>`;
     page.appendChild(intro);
     const grid=el('div','homegrid');
     const cards=[
@@ -598,8 +610,8 @@ function head(title,sub,ic){
 function pillTabs(active,onChange,labelA,labelB){
   labelA=labelA||'Mine'; labelB=labelB||'Hers';
   const wrap=el('div','pilltabs');
-  const mine=el('button', 'mine'+(active===labelA?' active':''),labelA);
-  const hers=el('button', 'hers'+(active===labelB?' active':''),labelB);
+  const mine=el('button', 'mine'+(active===labelA?' active':''), dispName(labelA));
+  const hers=el('button', 'hers'+(active===labelB?' active':''), dispName(labelB));
   mine.onclick=()=>onChange(labelA);
   hers.onclick=()=>onChange(labelB);
   wrap.appendChild(mine); wrap.appendChild(hers);
@@ -658,7 +670,7 @@ function renderLetters(page){
   compose.appendChild(el('p',null,'<span style="font-size:12.5px;color:var(--ink-light);">who\'s writing?</span>'));
   const pills=pillTabs(UI.composeFrom,(w)=>{ UI.composeFrom=w; route('letters'); });
   compose.appendChild(pills);
-  compose.appendChild(el('p',null,`<span style="font-size:12.5px;color:var(--pink-deep);font-weight:700;">→ this will land in ${other(UI.composeFrom)}'s inbox</span>`));
+  compose.appendChild(el('p',null,`<span style="font-size:12.5px;color:var(--pink-deep);font-weight:700;">→ this will land in ${dispName(other(UI.composeFrom))}'s inbox</span>`));
 
   const row=el('div','row');
   const subjectInp=el('input'); subjectInp.type='text'; subjectInp.placeholder='subject...';
@@ -680,7 +692,7 @@ function renderLetters(page){
   }
   rerenderDraftGallery();
 
-  const sendBtn=el('button','addbtn', icon('send')+'send to '+other(UI.composeFrom));
+  const sendBtn=el('button','addbtn', icon('send')+'send to '+dispName(other(UI.composeFrom)));
   sendBtn.style.marginTop='12px';
   sendBtn.onclick=()=>{
     if(!subjectInp.value.trim() && !bodyTa.value.trim()){ alert('write a little something first ♡'); return; }
@@ -704,14 +716,14 @@ function renderLetters(page){
 
   // which inbox are we looking at
   const view = UI.lettersView || 'Mine';
-  page.appendChild(el('h3',null, icon('mail')+` ${view}'s Inbox`));
+  page.appendChild(el('h3',null, icon('mail')+` ${dispName(view)}'s Inbox`));
   const inboxPills = pillTabs(view, (w)=>{ UI.lettersView=w; route('letters'); }, 'Mine', 'Hers');
   page.appendChild(inboxPills);
 
   const inboxLetters = root.letters.filter(l => l.to === view);
 
   if(inboxLetters.length===0){
-    page.appendChild(el('p','emptynote', view+' has no letters yet ♡'));
+    page.appendChild(el('p','emptynote', dispName(view)+' has no letters yet ♡'));
   }
   inboxLetters.forEach(letter=>{
     const row=el('div','envelope'+(letter.read?'':' unread')+(letter.from==='Hers'?' fromHers':''));
@@ -723,7 +735,7 @@ function renderLetters(page){
     body.appendChild(el('div','epreview', escapeHtml((letter.body||'').slice(0,60))));
     row.appendChild(body);
     const meta=el('div','emeta');
-    meta.appendChild(el('span','efrom','From '+letter.from));
+    meta.appendChild(el('span','efrom','From '+dispName(letter.from)));
     meta.appendChild(el('span','edate', formatDate(letter.date)));
     row.appendChild(meta);
     row.onclick=()=>openLetterView(letter, page);
@@ -762,7 +774,7 @@ function openLetterView(letter, page){
   paper.appendChild(actions);
 
   const top=el('div','lp-top');
-  top.appendChild(el('span','lp-from','From '+letter.from));
+  top.appendChild(el('span','lp-from','From '+dispName(letter.from)));
   paper.appendChild(top);
   paper.appendChild(el('h2',null, escapeHtml(letter.subject)));
   paper.appendChild(el('div','lp-date', formatDate(letter.date)));
