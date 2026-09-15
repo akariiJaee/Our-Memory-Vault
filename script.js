@@ -206,6 +206,7 @@ function startApp(){
     lastPayload=payload;
     try{ root=JSON.parse(payload); }catch(e){ root=defaultRoot(); }
     if(!root.letters) root.letters=[];
+    root.letters.forEach(l=>{ if(!l.to) l.to = (l.from==='Mine'?'Hers':'Mine'); });
     route(currentRoute);
   }, err=>{
     console.error(err);
@@ -646,14 +647,18 @@ function lockScreen(mode){
 /* ============================================================
    LETTERS / INBOX
 ============================================================ */
+function other(who){ return who==='Mine' ? 'Hers' : 'Mine'; }
+
 function renderLetters(page){
-  page.appendChild(head('Letters / Inbox','little notes to open whenever you miss each other.','mail'));
+  page.appendChild(head('Letters / Inbox','write one, and it lands straight in their inbox — not yours.','mail'));
 
   // compose box
   const compose=el('div','composebox');
   compose.appendChild(el('h3',null, icon('pen')+' write a letter'));
+  compose.appendChild(el('p',null,'<span style="font-size:12.5px;color:var(--ink-light);">who\'s writing?</span>'));
   const pills=pillTabs(UI.composeFrom,(w)=>{ UI.composeFrom=w; route('letters'); });
   compose.appendChild(pills);
+  compose.appendChild(el('p',null,`<span style="font-size:12.5px;color:var(--pink-deep);font-weight:700;">→ this will land in ${other(UI.composeFrom)}'s inbox</span>`));
 
   const row=el('div','row');
   const subjectInp=el('input'); subjectInp.type='text'; subjectInp.placeholder='subject...';
@@ -675,12 +680,12 @@ function renderLetters(page){
   }
   rerenderDraftGallery();
 
-  const sendBtn=el('button','addbtn', icon('send')+'send letter');
+  const sendBtn=el('button','addbtn', icon('send')+'send to '+other(UI.composeFrom));
   sendBtn.style.marginTop='12px';
   sendBtn.onclick=()=>{
     if(!subjectInp.value.trim() && !bodyTa.value.trim()){ alert('write a little something first ♡'); return; }
     root.letters.unshift({
-      id:uid(), from: UI.composeFrom,
+      id:uid(), from: UI.composeFrom, to: other(UI.composeFrom),
       subject: subjectInp.value.trim() || '(no subject)',
       body: bodyTa.value,
       media: UI.draftMedia,
@@ -688,6 +693,7 @@ function renderLetters(page){
       read:false
     });
     UI.draftMedia=[]; UI.draftSubject=''; UI.draftBody='';
+    UI.lettersView = other(UI.composeFrom); // jump to the recipient's inbox so you can see it land
     scheduleSave();
     route('letters');
   };
@@ -695,12 +701,19 @@ function renderLetters(page){
   page.appendChild(compose);
 
   page.appendChild(el('hr','divider'));
-  page.appendChild(el('h3',null, icon('mail')+' inbox'));
 
-  if(root.letters.length===0){
-    page.appendChild(el('p','emptynote','no letters yet — write the first one above ♡'));
+  // which inbox are we looking at
+  const view = UI.lettersView || 'Mine';
+  page.appendChild(el('h3',null, icon('mail')+` ${view}'s Inbox`));
+  const inboxPills = pillTabs(view, (w)=>{ UI.lettersView=w; route('letters'); }, 'Mine', 'Hers');
+  page.appendChild(inboxPills);
+
+  const inboxLetters = root.letters.filter(l => l.to === view);
+
+  if(inboxLetters.length===0){
+    page.appendChild(el('p','emptynote', view+' has no letters yet ♡'));
   }
-  root.letters.forEach(letter=>{
+  inboxLetters.forEach(letter=>{
     const row=el('div','envelope'+(letter.read?'':' unread')+(letter.from==='Hers'?' fromHers':''));
     if(!letter.read) row.appendChild(el('span','dot'));
     const eico=el('div','eico', icon('mail'));
