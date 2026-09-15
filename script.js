@@ -34,7 +34,7 @@ const ICON_PATHS = {
 ============================================================ */
 const NAMES = {
   Mine: 'Jae',        // <-- change to your name
-  Hers: 'Her Name'    // <-- change to her name
+  Hers: 'Mai'    // <-- change to her name
 };
 function dispName(key){ return NAMES[key] || key; }
 
