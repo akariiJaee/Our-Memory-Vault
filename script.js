@@ -398,7 +398,7 @@ function favoritesGrid(container, favArr, rerenderFn){
 function repeatableList(container, arr, opts, rerenderFn){
   opts = opts||{};
   if(arr.length===0){
-    container.appendChild(el('p','emptynote','nothing here yet — start adding your memories ♡'));
+    container.appendChild(el('p','emptynote','nothing here yet — start adding our memories ♡'));
   }
   arr.forEach((item,idx)=>{
     const box=el('div','listitem');
@@ -502,7 +502,7 @@ function route(id){
 const RENDERERS={
   home:(page)=>{
     const intro=el('div','introcard');
-    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of us are building together.</p>`;
+    intro.innerHTML=`<h2>welcome back, ${dispName('Jae')} & ${dispName('Mai')} ♡</h2><p>a little home for everything the two of us are building together.</p>`;
     page.appendChild(intro);
     const grid=el('div','homegrid');
     const cards=[
@@ -524,7 +524,7 @@ const RENDERERS={
   },
 
   info:(page)=>{
-    page.appendChild(head('Information Vault','everything about the two of you, side by side.','letterHeart'));
+    page.appendChild(head('Information Vault','everything about the two of us, side by side.','letterHeart'));
     let who = UI.infoWho;
     const pills=pillTabs(who, (w)=>{ UI.infoWho=w; route('info'); });
     page.appendChild(pills);
@@ -549,14 +549,14 @@ const RENDERERS={
   letters:(page)=>{ renderLetters(page); },
 
   collections:(page)=>{
-    page.appendChild(head('Our Collections','the things you each love to gather.','gift'));
+    page.appendChild(head('Our Collections','the things we both love to gather.','gift'));
     let who=UI.collectionsWho;
     page.appendChild(pillTabs(who,(w)=>{UI.collectionsWho=w; route('collections');}));
     repeatableList(page, root.collections[who], {addLabel:'add item', itemPlaceholder:'collection item...'}, ()=>route('collections'));
   },
 
   money:(page)=>{
-    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else you spend on together.','wallet'));
+    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else we spend on together.','wallet'));
     repeatableList(page, root.money, {addLabel:'add category', itemPlaceholder:'e.g. Hobbies, Games...'}, ()=>route('money'));
   },
 
@@ -570,7 +570,7 @@ const RENDERERS={
   traveled:(page)=>{
     if(!root.pin){ page.appendChild(lockScreen('setup')); return; }
     if(!travelUnlocked){ page.appendChild(lockScreen('enter')); return; }
-    page.appendChild(head('Places / Countries Traveled','unlocked — your travel memories together.','lockOpen'));
+    page.appendChild(head('Places / Countries Traveled','unlocked — our travel memories together.','lockOpen'));
     repeatableList(page, root.traveled, {addLabel:'add place', itemPlaceholder:'place / country...'}, ()=>route('traveled'));
     const relock=el('button','tinylink','lock this section again');
     relock.style.display='block';
