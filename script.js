@@ -32,31 +32,77 @@ function icon(name,cls){
 }
 
 /* ============================================================
-   STORAGE
+   DECORATIVE SCENE — falling petals + hydrangea flower clusters
 ============================================================ */
-const DB_NAME='memoryVaultDB', STORE='vault', KEY='root';
-let db, root, saveTimer;
+function buildPetals(){
+  const wrap=document.getElementById('petals');
+  if(!wrap) return;
+  const count=16;
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='petal';
+    const size=8+Math.random()*10;
+    const left=Math.random()*100;
+    const duration=9+Math.random()*10;
+    const delay=-(Math.random()*18);
+    const sway=(Math.random()*70+20)*(Math.random()<0.5?-1:1);
+    const swayDur=3+Math.random()*3;
+    p.style.width=size+'px';
+    p.style.height=size+'px';
+    p.style.left=left+'%';
+    p.style.setProperty('--sway',sway+'px');
+    p.style.animationDuration=duration+'s, '+swayDur+'s';
+    p.style.animationDelay=delay+'s, '+(delay*0.5)+'s';
+    wrap.appendChild(p);
+  }
+}
+// a single hydrangea "floret" — four small petal-ellipses around a tiny center
+function floretSVG(cx,cy,scale,hue){
+  const c1=hue==='light'?'#ffe3ee':'#ffc7de';
+  const c2=hue==='light'?'#ffd0e2':'#ff9dc4';
+  const petal=(rot)=>`<ellipse cx="0" cy="-3.6" rx="2.6" ry="3.6" fill="${c1}" stroke="${c2}" stroke-width=".3" transform="rotate(${rot})"/>`;
+  return `<g transform="translate(${cx} ${cy}) scale(${scale})">
+    ${petal(0)}${petal(90)}${petal(180)}${petal(270)}
+    <circle cx="0" cy="0" r="1.1" fill="#ffb6d3"/>
+  </g>`;
+}
+// a cluster of florets arranged in a dome, like a real hydrangea bloom
+function hydrangeaCluster(){
+  const florets=[];
+  const positions=[
+    [0,0,1,'deep'],[10,-6,.85,'light'],[-10,-4,.85,'deep'],[8,8,.8,'light'],[-9,9,.85,'deep'],
+    [0,-13,.75,'light'],[15,4,.7,'deep'],[-15,3,.7,'light'],[3,15,.7,'deep'],[-4,-14,.65,'light'],
+    [16,-9,.6,'light'],[-16,-8,.6,'deep']
+  ];
+  positions.forEach(([x,y,s,h])=>florets.push(floretSVG(x,y,s,h)));
+  return florets.join('');
+}
+function buildHydrangeas(){
+  const bl=document.getElementById('hydrangeaBL');
+  const tr=document.getElementById('hydrangeaTR');
+  const svg=(vb)=>`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(35 35)">${hydrangeaCluster()}</g>
+      <g transform="translate(60 60) scale(.6)">${hydrangeaCluster()}</g>
+      <g transform="translate(10 65) scale(.5)">${hydrangeaCluster()}</g>
+    </svg>`;
+  if(bl) bl.innerHTML=svg('-20 -20 120 120');
+  if(tr) tr.innerHTML=svg('-20 -20 120 120');
+}
+document.addEventListener('DOMContentLoaded',()=>{ buildPetals(); buildHydrangeas(); });
 
-function openDB(){
-  return new Promise((res,rej)=>{
-    const req=indexedDB.open(DB_NAME,1);
-    req.onupgradeneeded=()=>{ req.result.createObjectStore(STORE); };
-    req.onsuccess=()=>res(req.result);
-    req.onerror=()=>rej(req.error);
-  });
-}
-function idbGet(key){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(STORE,'readonly').objectStore(STORE).get(key);
-    tx.onsuccess=()=>res(tx.result); tx.onerror=()=>rej(tx.error);
-  });
-}
-function idbSet(key,val){
-  return new Promise((res,rej)=>{
-    const tx=db.transaction(STORE,'readwrite').objectStore(STORE).put(val,key);
-    tx.onsuccess=()=>res(); tx.onerror=()=>rej(tx.error);
-  });
-}
+/* ============================================================
+   FIREBASE — real backend so both of you sync in real time.
+   Config comes from firebase-config.js (loaded before this file).
+============================================================ */
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const dbFs = firebase.firestore();
+const storage = firebase.storage();
+
+let root, saveTimer;
+let lastPayload = null;
+let unsubscribeSnapshot = null;
+
 function uid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
 
 function personShape(){
@@ -124,21 +170,62 @@ function defaultRoot(){
   };
 }
 
-async function init(){
-  db=await openDB();
-  let saved=await idbGet(KEY);
-  root = saved || defaultRoot();
-  if(!root.letters) root.letters=[]; // migrate older saves
-  buildNav();
-  route('home');
+function flashSaved(){
+  const f=document.getElementById('savedFlag');
+  f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),900);
 }
 function scheduleSave(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async ()=>{
-    await idbSet(KEY,root);
-    const f=document.getElementById('savedFlag');
-    f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),900);
-  },500);
+    const payload=JSON.stringify(root);
+    lastPayload=payload; // mark as "our own change" so the snapshot echo doesn't re-render and steal focus
+    try{
+      await dbFs.collection('vault').doc('root').set({payload, updatedAt:Date.now()});
+      flashSaved();
+    }catch(e){
+      console.error(e);
+      alert('Could not sync that change — check your internet connection. ('+e.message+')');
+    }
+  },600);
+}
+
+function startApp(){
+  buildNav();
+  if(unsubscribeSnapshot) unsubscribeSnapshot();
+  const docRef=dbFs.collection('vault').doc('root');
+  unsubscribeSnapshot = docRef.onSnapshot(snap=>{
+    if(!snap.exists){
+      root=defaultRoot();
+      lastPayload=JSON.stringify(root);
+      docRef.set({payload:lastPayload, updatedAt:Date.now()});
+      route(currentRoute);
+      return;
+    }
+    const payload=snap.data().payload;
+    if(payload===lastPayload) return; // our own write echoing back — nothing changed for us
+    lastPayload=payload;
+    try{ root=JSON.parse(payload); }catch(e){ root=defaultRoot(); }
+    if(!root.letters) root.letters=[];
+    route(currentRoute);
+  }, err=>{
+    console.error(err);
+    alert('Sync error: '+err.message);
+  });
+}
+
+function stopApp(){
+  if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot=null; }
+}
+
+function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPassword').value;
+  const errBox=document.getElementById('loginError');
+  errBox.textContent='';
+  if(!email || !pass){ errBox.textContent='enter both email and password'; return; }
+  auth.signInWithEmailAndPassword(email,pass).catch(err=>{
+    errBox.textContent=err.message;
+  });
 }
 
 /* ============================================================
@@ -148,19 +235,24 @@ function el(tag,cls,html){const e=document.createElement(tag); if(cls)e.classNam
 
 function mediaThumb(item, mediaArr, idx, onDelete){
   const t=el('div','polaroid');
-  const url=URL.createObjectURL(item.blob);
   const frame=el('div','frame');
-  if(item.type.startsWith('video')){
-    const v=el('video'); v.src=url; v.muted=true;
+  const isVideo=(item.type||'').startsWith('video');
+  if(isVideo){
+    const v=el('video'); v.src=item.url; v.muted=true;
     frame.appendChild(v);
   } else {
-    const im=el('img'); im.src=url;
+    const im=el('img'); im.src=item.url;
     frame.appendChild(im);
   }
-  frame.onclick=()=>openLightbox(url, item.type.startsWith('video')?'video':'img');
+  frame.onclick=()=>openLightbox(item.url, isVideo?'video':'img');
   t.appendChild(frame);
   const del=el('button','del',icon('trash'));
-  del.onclick=(e)=>{ e.stopPropagation(); mediaArr.splice(idx,1); onDelete(); };
+  del.onclick=(e)=>{
+    e.stopPropagation();
+    mediaArr.splice(idx,1);
+    if(item.path){ storage.ref().child(item.path).delete().catch(()=>{}); }
+    onDelete();
+  };
   t.appendChild(del);
   return t;
 }
@@ -187,6 +279,32 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelector('#lightbox .close').innerHTML=icon('close');
   document.getElementById('brandIcon').innerHTML=icon('letterHeart');
   document.getElementById('savedFlag').innerHTML=icon('star')+'saved';
+  document.getElementById('loginIcon').innerHTML=icon('lock');
+  document.getElementById('loginBtn').innerHTML=icon('lockOpen')+'sign in';
+  document.getElementById('logoutBtn').innerHTML=icon('close')+'log out';
+
+  document.getElementById('loginBtn').onclick=doLogin;
+  document.getElementById('loginPassword').onkeydown=(e)=>{ if(e.key==='Enter') doLogin(); };
+  document.getElementById('logoutBtn').onclick=()=>{ auth.signOut(); };
+
+  document.getElementById('menuToggle').innerHTML=icon('menu');
+  document.getElementById('menuToggle').onclick=()=>{
+    document.getElementById('sidebar').classList.toggle('open');
+  };
+
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('appWrap').style.display='';
+      document.getElementById('userTag').textContent=user.email;
+      startApp();
+    } else {
+      stopApp();
+      document.getElementById('loginScreen').style.display='';
+      document.getElementById('appWrap').style.display='none';
+      document.getElementById('loginPassword').value='';
+    }
+  });
 });
 
 function renderGallery(container, mediaArr, rerenderFn){
@@ -196,10 +314,23 @@ function renderGallery(container, mediaArr, rerenderFn){
   });
   const add=el('label','addmedia', icon('image')+'<span>add</span>');
   const input=el('input'); input.type='file'; input.accept='image/*,video/*'; input.multiple=true;
-  input.onchange=()=>{
-    [...input.files].forEach(f=>{
-      mediaArr.push({id:uid(), blob:f, type:f.type||'image/*', name:f.name});
-    });
+  input.onchange=async ()=>{
+    const files=[...input.files];
+    if(!files.length) return;
+    add.classList.add('uploading');
+    const labelSpan=add.querySelector('span'); if(labelSpan) labelSpan.textContent='uploading...';
+    for(const f of files){
+      try{
+        const mediaId=uid();
+        const path='media/'+mediaId+'-'+encodeURIComponent(f.name||'file');
+        const ref=storage.ref().child(path);
+        await ref.put(f);
+        const url=await ref.getDownloadURL();
+        mediaArr.push({id:mediaId, url, path, type:f.type||'image/*', name:f.name});
+      }catch(err){
+        alert('Upload failed for '+f.name+': '+err.message);
+      }
+    }
     scheduleSave(); rerenderFn();
   };
   add.appendChild(input);
@@ -638,12 +769,4 @@ function closeLetterView(){
   document.getElementById('letterInner').innerHTML='';
 }
 
-/* mobile sidebar toggle */
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('menuToggle').innerHTML=icon('menu');
-  document.getElementById('menuToggle').onclick=()=>{
-    document.getElementById('sidebar').classList.toggle('open');
-  };
-});
 
-init();
