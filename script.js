@@ -642,13 +642,13 @@ function route(id){
 const RENDERERS={
   home:(page)=>{
     const intro=el('div','introcard');
-    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of you are building together.</p>`;
+    intro.innerHTML=`<h2>welcome back, ${dispName('Mine')} & ${dispName('Hers')} ♡</h2><p>a little home for everything the two of us are building together.</p>`;
     page.appendChild(intro);
     const grid=el('div','homegrid');
     const cards=[
       {ic:'letterHeart',t:'Information Vault',d:'names, personalities, favorites',go:'info'},
       {ic:'mail',t:'Letters / Inbox',d:'write each other little letters',go:'letters'},
-      {ic:'gift',t:'Our Collections',d:'the things you both collect',go:'collections'},
+      {ic:'gift',t:'Our Collections',d:'the things we both collect',go:'collections'},
       {ic:'wallet',t:'Where Our Money Goes',d:'hobbies, games, & more',go:'money'},
       {ic:'plane',t:'Places We Want To Go',d:'wishlist & plans',go:'wantToGo'},
       {ic:'mappin',t:'Places Traveled',d:'locked memories',go:'traveled'},
@@ -664,7 +664,7 @@ const RENDERERS={
   },
 
   info:(page)=>{
-    page.appendChild(head('Information Vault','everything about the two of you, side by side.','letterHeart'));
+    page.appendChild(head('Information Vault','everything about the two of us, side by side.','letterHeart'));
     let who = UI.infoWho;
     const pills=pillTabs(who, (w)=>{ UI.infoWho=w; route('info'); });
     page.appendChild(pills);
@@ -689,14 +689,14 @@ const RENDERERS={
   letters:(page)=>{ renderLetters(page); },
 
   collections:(page)=>{
-    page.appendChild(head('Our Collections','the things you each love to gather.','gift'));
+    page.appendChild(head('Our Collections','the things we love to gather.','gift'));
     let who=UI.collectionsWho;
     page.appendChild(pillTabs(who,(w)=>{UI.collectionsWho=w; route('collections');}));
     repeatableList(page, root.collections[who], {addLabel:'add item', itemPlaceholder:'collection item...'}, ()=>route('collections'));
   },
 
   money:(page)=>{
-    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else you spend on together.','wallet'));
+    page.appendChild(head('Where Our Money Goes','hobbies, games, and everything else we spend on together.','wallet'));
     repeatableList(page, root.money, {addLabel:'add category', itemPlaceholder:'e.g. Hobbies, Games...'}, ()=>route('money'));
   },
 
@@ -710,7 +710,7 @@ const RENDERERS={
   traveled:(page)=>{
     if(!root.pin){ page.appendChild(lockScreen('setup')); return; }
     if(!travelUnlocked){ page.appendChild(lockScreen('enter')); return; }
-    page.appendChild(head('Places / Countries Traveled','unlocked — your travel memories together.','lockOpen'));
+    page.appendChild(head('Places / Countries Traveled','unlocked — our travel memories together.','lockOpen'));
     repeatableList(page, root.traveled, {addLabel:'add place', itemPlaceholder:'place / country...'}, ()=>route('traveled'));
     const relock=el('button','tinylink','lock this section again');
     relock.style.display='block';
@@ -726,7 +726,7 @@ const RENDERERS={
   m_foods:(page)=>{ memPage(page,'Shared Foods','sharedFoods',{addLabel:'add food memory'},'utensils'); },
 
   m_funny:(page)=>{
-    page.appendChild(head('Funny Moments','the bits you\'ll be laughing about forever.','star'));
+    page.appendChild(head('Funny Moments','the bits we\'ll be laughing about forever.','star'));
     let sub=UI.funnySub;
     const tabs=el('div','subtabs');
     [['games','Games','controller'],['online','Online','chat'],['irl','IRL','heartpin']].forEach(([k,l,ic])=>{
@@ -763,7 +763,7 @@ function lockScreen(mode){
   const wrap=el('div','lockwrap');
   if(mode==='setup'){
     wrap.innerHTML=`<div class="lic">${icon('lock')}</div><h3>Set a PIN for this section</h3>
-      <p style="color:var(--ink-light);font-size:13px;">just a fun little lock between you two — not real security.</p>`;
+      <p style="color:var(--ink-light);font-size:13px;">just a fun little lock between us — not real security.</p>`;
     const inp=el('input'); inp.maxLength=8; inp.placeholder='••••'; inp.type='password';
     wrap.appendChild(inp);
     const btn=el('button','addbtn', icon('lockOpen')+'set pin & continue');
@@ -789,7 +789,7 @@ function lockScreen(mode){
     wrap.appendChild(btn);
     const forgot=el('button','tinylink','forgot pin? reset section');
     forgot.onclick=()=>{
-      if(confirm('This will remove the PIN (your travel entries stay safe). Continue?')){
+      if(confirm('This will remove the PIN (our travel entries stay safe). Continue?')){
         root.pin=null; scheduleSave(); route('traveled');
       }
     };
