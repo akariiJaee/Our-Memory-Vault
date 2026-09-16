@@ -153,8 +153,9 @@ const dbFs = firebase.firestore();
 // Photos/videos go through Cloudinary (see cloudinary-config.js) instead of
 // Firebase Storage, so no billing card is required for this project.
 
-let root, saveTimer;
+let root;
 let lastPayload = null;
+let baselinePayload = null; // the last state both of you agreed on — used as the "common ancestor" for merging
 let unsubscribeSnapshot = null;
 
 function uid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
@@ -228,37 +229,90 @@ function flashSaved(){
   const f=document.getElementById('savedFlag');
   f.classList.add('show'); setTimeout(()=>f.classList.remove('show'),900);
 }
+// Manual-save mode: typing/uploading no longer writes to Firestore on its own —
+// it just marks the Save button so you know there's something waiting to be saved.
 function scheduleSave(){
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(async ()=>{
-    const payload=JSON.stringify(root);
-    lastPayload=payload; // mark as "our own change" so the snapshot echo doesn't re-render and steal focus
-    try{
-      await dbFs.collection('vault').doc('root').set({payload, updatedAt:Date.now()});
-      flashSaved();
-    }catch(e){
-      console.error(e);
-      alert('Could not sync that change — check your internet connection. ('+e.message+')');
-    }
-  },600);
+  const btn=document.getElementById('saveNowBtn');
+  if(btn) btn.classList.add('unsaved');
 }
 
-// Manually force-save right now (used by the Save button) — skips the debounce delay entirely.
+// The ONLY thing that actually writes to Firestore — triggered by pressing the Save button.
 async function saveNow(){
-  clearTimeout(saveTimer);
   const btn=document.getElementById('saveNowBtn');
   if(btn) btn.classList.add('saving');
   const payload=JSON.stringify(root);
   lastPayload=payload;
   try{
     await dbFs.collection('vault').doc('root').set({payload, updatedAt:Date.now()});
+    baselinePayload=payload; // this is now the new shared common ground
     flashSaved();
+    if(btn) btn.classList.remove('unsaved');
   }catch(e){
     console.error(e);
     alert('Could not save — check your internet connection. ('+e.message+')');
   }finally{
     if(btn) btn.classList.remove('saving');
   }
+}
+
+// ============================================================
+// 3-way merge — lets your unsaved edits survive when your partner
+// saves first. base = last state you both agreed on, local = your
+// current (possibly unsaved) copy, remote = what just arrived.
+// ============================================================
+function jeq(a,b){ return JSON.stringify(a)===JSON.stringify(b); }
+
+function mergeArrayById(baseArr, localArr, remoteArr){
+  baseArr=baseArr||[]; localArr=localArr||[]; remoteArr=remoteArr||[];
+  const baseIds=new Set(baseArr.map(x=>x.id));
+  const localIds=new Set(localArr.map(x=>x.id));
+  const remoteIds=new Set(remoteArr.map(x=>x.id));
+  const localById=Object.fromEntries(localArr.map(x=>[x.id,x]));
+  const baseById=Object.fromEntries(baseArr.map(x=>[x.id,x]));
+  const result=[]; const seen=new Set();
+
+  remoteArr.forEach(rItem=>{
+    const id=rItem.id;
+    const inLocal=localIds.has(id), inBase=baseIds.has(id);
+    seen.add(id);
+    if(!inLocal && inBase) return; // you deleted it locally — honor that, don't bring it back
+    if(inLocal){ result.push(mergeObjects(baseById[id], localById[id], rItem)); }
+    else { result.push(rItem); } // brand new from her
+  });
+  localArr.forEach(lItem=>{
+    const id=lItem.id;
+    if(seen.has(id)) return;
+    const inBase=baseIds.has(id), inRemote=remoteIds.has(id);
+    if(inBase && !inRemote) return; // she deleted it and you didn't touch it — honor her deletion
+    result.push(lItem); // your new addition she doesn't have yet
+  });
+  return result;
+}
+
+function mergeObjects(base, local, remote){
+  if(local===undefined) return remote;
+  if(remote===undefined) return local;
+  const isObj=(v)=>v && typeof v==='object' && !Array.isArray(v);
+  if(!isObj(local) || !isObj(remote)){
+    // scalar (string/number/bool/null) — keep yours if you changed it from the shared base, otherwise take hers
+    return jeq(local, base) ? remote : local;
+  }
+  const keys=new Set([...(isObj(base)?Object.keys(base):[]), ...Object.keys(local), ...Object.keys(remote)]);
+  const out={};
+  keys.forEach(k=>{
+    const bv=isObj(base)?base[k]:undefined, lv=local[k], rv=remote[k];
+    if(Array.isArray(lv) || Array.isArray(rv) || Array.isArray(bv)){
+      const sample=(lv&&lv[0])||(rv&&rv[0])||(bv&&bv[0]);
+      out[k]=(sample && typeof sample==='object' && 'id' in sample)
+        ? mergeArrayById(bv,lv,rv)
+        : (jeq(lv,bv) ? rv : lv);
+    } else if(isObj(lv) || isObj(rv)){
+      out[k]=mergeObjects(bv,lv,rv);
+    } else {
+      out[k]=jeq(lv,bv) ? rv : lv;
+    }
+  });
+  return out;
 }
 
 function startApp(){
@@ -269,14 +323,37 @@ function startApp(){
     if(!snap.exists){
       root=defaultRoot();
       lastPayload=JSON.stringify(root);
+      baselinePayload=lastPayload;
       docRef.set({payload:lastPayload, updatedAt:Date.now()});
       route(currentRoute);
       return;
     }
     const payload=snap.data().payload;
     if(payload===lastPayload) return; // our own write echoing back — nothing changed for us
-    lastPayload=payload;
-    try{ root=JSON.parse(payload); }catch(e){ root=defaultRoot(); }
+
+    const btn=document.getElementById('saveNowBtn');
+    const hasUnsaved = btn && btn.classList.contains('unsaved');
+
+    if(hasUnsaved && baselinePayload){
+      // She saved while you had unsaved edits — merge hers into yours instead of overwriting you.
+      try{
+        const baseRoot=JSON.parse(baselinePayload);
+        const remoteRoot=JSON.parse(payload);
+        root=mergeObjects(baseRoot, root, remoteRoot);
+      }catch(e){
+        console.error('merge failed, falling back to her version', e);
+        try{ root=JSON.parse(payload); }catch(e2){ root=defaultRoot(); }
+      }
+      lastPayload=payload;
+      baselinePayload=payload; // her saved state is now the new common ancestor
+      // your edits are still unsaved on top of the merge — keep the pulse on and remind them
+      if(btn) btn.classList.add('unsaved');
+    } else {
+      lastPayload=payload;
+      baselinePayload=payload;
+      try{ root=JSON.parse(payload); }catch(e){ root=defaultRoot(); }
+    }
+
     if(!root.letters) root.letters=[];
     root.letters.forEach(l=>{ if(!l.to) l.to = (l.from==='Mine'?'Hers':'Mine'); });
     route(currentRoute);
