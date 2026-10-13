@@ -25,7 +25,12 @@ const ICON_PATHS = {
   menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
   lock:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 8.4 0v3"/>',
   lockOpen:'<rect x="5" y="10.8" width="14" height="9.4" rx="2.2"/><path d="M7.8 10.8V7.8a4.2 4.2 0 0 1 7.7-2.3"/>',
-  save:'<circle cx="12" cy="12" r="9.2"/><path d="M7.8 12.4l2.6 2.6 5.6-6"/>'
+  save:'<circle cx="12" cy="12" r="9.2"/><path d="M7.8 12.4l2.6 2.6 5.6-6"/>',
+  mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21M9 21h6"/>',
+  stop:'<rect x="6.5" y="6.5" width="11" height="11" rx="2.4" fill="currentColor"/>',
+  upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4.5 16v2.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V16"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>',
+  moon:'<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 6.8 6.8 0 0 0 20 14.5z"/>'
 };
 /* ============================================================
    ★ EDIT YOUR NAMES HERE ★ — this is the only place you need to
@@ -221,7 +226,8 @@ function defaultRoot(){
       ],
       sharedFoods:[]
     },
-    letters:[]
+    letters:[],
+    voice:[]
   };
 }
 
@@ -355,6 +361,7 @@ function startApp(){
     }
 
     if(!root.letters) root.letters=[];
+    if(!root.voice) root.voice=[];
     root.letters.forEach(l=>{ if(!l.to) l.to = (l.from==='Mine'?'Hers':'Mine'); });
     route(currentRoute);
   }, err=>{
@@ -432,6 +439,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loginBtn').innerHTML=icon('lockOpen')+'sign in';
   document.getElementById('logoutBtn').innerHTML=icon('close')+'log out';
   document.getElementById('saveNowBtn').innerHTML=icon('save')+'<span>save</span>';
+  document.getElementById('themeBtn').onclick=toggleTheme;
+  applyTheme(currentTheme);
 
   document.getElementById('loginBtn').onclick=doLogin;
   document.getElementById('loginPassword').onkeydown=(e)=>{ if(e.key==='Enter') doLogin(); };
@@ -449,6 +458,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       document.getElementById('appWrap').style.display='';
       document.getElementById('saveNowBtn').style.display='flex';
       document.getElementById('userTag').textContent=user.email;
+      loadTheme(user.uid);
       startApp();
     } else {
       stopApp();
@@ -571,6 +581,7 @@ const NAV=[
   {id:'home', label:'Home', icon:'home'},
   {id:'info', label:'Information Vault', icon:'letterHeart'},
   {id:'letters', label:'Letters / Inbox', icon:'mail'},
+  {id:'voice', label:'Voice Messages', icon:'mic'},
   {id:'collections', label:'Our Collections', icon:'gift'},
   {id:'money', label:'Where Our Money Goes', icon:'wallet'},
   {id:'wantToGo', label:'Places We Want To Go', icon:'plane'},
@@ -587,7 +598,7 @@ const NAV=[
 ];
 let currentRoute='home';
 let travelUnlocked=false;
-const UI={ infoWho:'Mine', collectionsWho:'Mine', wantToGoWho:'Mine', funnySub:'games', composeFrom:'Mine', draftMedia:[] };
+const UI={ infoWho:'Mine', collectionsWho:'Mine', wantToGoWho:'Mine', funnySub:'games', composeFrom:'Mine', draftMedia:[], voiceFrom:'Mine', voiceView:'Mine', voiceTitle:'', draftVoice:null };
 
 function buildNav(){
   const nav=document.getElementById('mainnav');
@@ -627,6 +638,7 @@ function markActive(id){
   });
 }
 function route(id){
+  if(id!=='voice' && typeof REC!=='undefined' && REC.state==='recording') stopRecording();
   currentRoute=id;
   markActive(id);
   const main=document.getElementById('main');
@@ -648,6 +660,7 @@ const RENDERERS={
     const cards=[
       {ic:'letterHeart',t:'Information Vault',d:'names, personalities, favorites',go:'info'},
       {ic:'mail',t:'Letters / Inbox',d:'write each other little letters',go:'letters'},
+      {ic:'mic',t:'Voice Messages',d:'record or upload a voice note',go:'voice'},
       {ic:'gift',t:'Our Collections',d:'the things we both collect',go:'collections'},
       {ic:'wallet',t:'Where Our Money Goes',d:'hobbies, games, & more',go:'money'},
       {ic:'plane',t:'Places We Want To Go',d:'wishlist & plans',go:'wantToGo'},
@@ -687,6 +700,7 @@ const RENDERERS={
   },
 
   letters:(page)=>{ renderLetters(page); },
+  voice:(page)=>{ renderVoice(page); },
 
   collections:(page)=>{
     page.appendChild(head('Our Collections','the things we love to gather.','gift'));
@@ -796,6 +810,219 @@ function lockScreen(mode){
     wrap.appendChild(forgot);
     return wrap;
   }
+}
+
+
+/* ============================================================
+   THEME — dark / light, remembered separately for each of you.
+   Stored in this browser under your own account, never in the shared
+   database, so changing yours never changes hers.
+============================================================ */
+let currentTheme=(function(){ try{ return localStorage.getItem('vault-theme-last')==='dark'?'dark':'light'; }catch(e){ return 'light'; } })();
+function applyTheme(t){
+  currentTheme = (t==='dark') ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  const b=document.getElementById('themeBtn');
+  if(b) b.innerHTML = currentTheme==='dark' ? icon('sun')+'light mode' : icon('moon')+'dark mode';
+}
+function loadTheme(uidStr){
+  let t=null;
+  try{ t=localStorage.getItem('vault-theme-'+uidStr); }catch(e){}
+  applyTheme(t==='dark'?'dark':'light');
+  try{ localStorage.setItem('vault-theme-last', currentTheme); }catch(e){}
+}
+function toggleTheme(){
+  applyTheme(currentTheme==='dark'?'light':'dark');
+  const u=auth.currentUser;
+  try{
+    if(u) localStorage.setItem('vault-theme-'+u.uid, currentTheme);
+    localStorage.setItem('vault-theme-last', currentTheme);
+  }catch(e){}
+}
+
+/* ============================================================
+   VOICE MESSAGES — record in the browser, or upload an audio file.
+   Same routing as letters: a message you send lands in the OTHER
+   person's voice inbox.
+============================================================ */
+async function cloudinaryUpload(file){
+  const fd=new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', cloudinaryConfig.uploadPreset);
+  const res=await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/auto/upload`,{method:'POST',body:fd});
+  const data=await res.json();
+  if(!res.ok){ throw new Error((data.error && data.error.message) || 'upload failed'); }
+  return data;
+}
+
+const REC={ recorder:null, stream:null, chunks:[], startedAt:0, timer:null, state:'idle' };
+function fmtTime(sec){ sec=Math.max(0,Math.floor(sec)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
+function clearDraftVoice(){
+  if(UI.draftVoice && UI.draftVoice.previewUrl) URL.revokeObjectURL(UI.draftVoice.previewUrl);
+  UI.draftVoice=null;
+}
+
+async function startRecording(rerender){
+  if(!navigator.mediaDevices || !window.MediaRecorder){
+    alert("Recording isn't supported in this browser — you can still upload an audio file instead.");
+    return;
+  }
+  try{
+    REC.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    alert("Couldn't use the microphone. Allow mic access for this site in your browser (the lock icon in the address bar), or upload an audio file instead.");
+    return;
+  }
+  const prefs=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];
+  const mime=prefs.find(m=>MediaRecorder.isTypeSupported(m))||'';
+  REC.recorder=new MediaRecorder(REC.stream, mime?{mimeType:mime}:undefined);
+  REC.chunks=[];
+  REC.recorder.ondataavailable=(e)=>{ if(e.data && e.data.size) REC.chunks.push(e.data); };
+  REC.recorder.onstop=()=>{
+    clearInterval(REC.timer);
+    REC.stream.getTracks().forEach(t=>t.stop());
+    const type=(REC.recorder.mimeType||mime||'audio/webm').split(';')[0];
+    const blob=new Blob(REC.chunks,{type});
+    const ext=type.includes('mp4')?'m4a':(type.includes('ogg')?'ogg':'webm');
+    clearDraftVoice();
+    UI.draftVoice={blob, name:'voice-message.'+ext, type, previewUrl:URL.createObjectURL(blob), source:'recorded'};
+    REC.state='idle';
+    if(currentRoute==='voice') rerender();
+  };
+  REC.recorder.start();
+  REC.state='recording'; REC.startedAt=Date.now();
+  REC.timer=setInterval(()=>{
+    const t=document.getElementById('recTimer');
+    if(t) t.textContent=fmtTime((Date.now()-REC.startedAt)/1000);
+  },250);
+  rerender();
+}
+function stopRecording(){
+  if(REC.recorder && REC.recorder.state==='recording') REC.recorder.stop();
+}
+
+function renderVoice(page){
+  page.appendChild(head('Voice Messages','record a little voice note, or upload an audio file — it lands in their inbox.','mic'));
+
+  const compose=el('div','composebox');
+  compose.appendChild(el('h3',null, icon('mic')+' send a voice message'));
+  compose.appendChild(el('p',null,'<span style="font-size:12.5px;color:var(--ink-light);">who\'s sending?</span>'));
+  compose.appendChild(pillTabs(UI.voiceFrom,(w)=>{ UI.voiceFrom=w; route('voice'); }));
+  compose.appendChild(el('p',null,`<span style="font-size:12.5px;color:var(--pink-deep);font-weight:700;">→ this will land in ${dispName(other(UI.voiceFrom))}'s inbox</span>`));
+
+  const row=el('div','row');
+  const titleInp=el('input'); titleInp.type='text'; titleInp.placeholder='title (optional), e.g. good morning';
+  titleInp.value=UI.voiceTitle||'';
+  titleInp.oninput=()=>{ UI.voiceTitle=titleInp.value; };
+  row.appendChild(titleInp);
+  compose.appendChild(row);
+
+  const controls=el('div','voicecontrols');
+  if(REC.state==='recording'){
+    const stopBtn=el('button','recbtn recording', icon('stop')+'stop <span id="recTimer" class="rectimer">'+fmtTime((Date.now()-REC.startedAt)/1000)+'</span>');
+    stopBtn.onclick=()=>stopRecording();
+    controls.appendChild(stopBtn);
+  } else {
+    const recBtn=el('button','recbtn', icon('mic')+(UI.draftVoice?'record again':'record'));
+    recBtn.onclick=()=>startRecording(()=>route('voice'));
+    controls.appendChild(recBtn);
+
+    const up=el('label','recbtn alt', icon('upload')+'upload audio file');
+    const inp=el('input'); inp.type='file'; inp.accept='audio/*,.mp3,.m4a,.wav,.ogg,.aac'; inp.style.display='none';
+    inp.onchange=()=>{
+      const f=inp.files[0]; if(!f) return;
+      clearDraftVoice();
+      UI.draftVoice={blob:f, name:f.name, type:f.type||'audio/mpeg', previewUrl:URL.createObjectURL(f), source:'uploaded'};
+      route('voice');
+    };
+    up.appendChild(inp);
+    controls.appendChild(up);
+  }
+  compose.appendChild(controls);
+
+  if(UI.draftVoice && REC.state!=='recording'){
+    const prev=el('div','voicepreview');
+    const nm=el('div','vname');
+    nm.appendChild(el('span',null, (UI.draftVoice.source==='recorded'?'your recording':escapeHtml(UI.draftVoice.name))+' — preview'));
+    const discard=el('button','iconbtn', icon('trash'));
+    discard.title='discard';
+    discard.onclick=()=>{ clearDraftVoice(); route('voice'); };
+    nm.appendChild(discard);
+    prev.appendChild(nm);
+    const a=el('audio'); a.controls=true; a.src=UI.draftVoice.previewUrl;
+    prev.appendChild(a);
+    compose.appendChild(prev);
+  }
+
+  const sendBtn=el('button','addbtn', icon('send')+'send to '+dispName(other(UI.voiceFrom)));
+  sendBtn.style.marginTop='12px';
+  sendBtn.onclick=async ()=>{
+    if(REC.state==='recording'){ alert('stop the recording first'); return; }
+    if(!UI.draftVoice){ alert('record or upload a voice message first'); return; }
+    const original=sendBtn.innerHTML;
+    sendBtn.disabled=true; sendBtn.style.opacity='.7'; sendBtn.innerHTML='sending...';
+    try{
+      const d=UI.draftVoice;
+      const file=(d.blob instanceof File) ? d.blob : new File([d.blob], d.name, {type:d.type});
+      const data=await cloudinaryUpload(file);
+      root.voice.unshift({
+        id:uid(), from:UI.voiceFrom, to:other(UI.voiceFrom),
+        title:(UI.voiceTitle||'').trim(),
+        url:data.secure_url, publicId:data.public_id, type:d.type, name:d.name,
+        date:new Date().toISOString(), read:false
+      });
+      clearDraftVoice(); UI.voiceTitle='';
+      UI.voiceView=other(UI.voiceFrom);
+      scheduleSave();
+      route('voice');
+    }catch(err){
+      alert('Could not send the voice message: '+err.message);
+      sendBtn.disabled=false; sendBtn.style.opacity=''; sendBtn.innerHTML=original;
+    }
+  };
+  compose.appendChild(sendBtn);
+  page.appendChild(compose);
+
+  page.appendChild(el('hr','divider'));
+  const view=UI.voiceView||'Mine';
+  page.appendChild(el('h3',null, icon('mic')+` ${dispName(view)}'s Voice Inbox`));
+  page.appendChild(pillTabs(view,(w)=>{ UI.voiceView=w; route('voice'); }));
+
+  const items=root.voice.filter(v=>v.to===view);
+  if(items.length===0){
+    page.appendChild(el('p','emptynote', dispName(view)+' has no voice messages yet'));
+  }
+  items.forEach(v=>{
+    const card=el('div','vmsg'+(v.read?'':' unread')+(v.from==='Hers'?' fromHers':''));
+    if(!v.read) card.appendChild(el('span','dot'));
+    const top=el('div','vtop');
+    top.appendChild(el('div','vico', icon('mic')));
+    const body=el('div','vbody');
+    body.appendChild(el('div','vtitle', escapeHtml(v.title || 'Voice message')));
+    body.appendChild(el('div','vmeta', 'From '+dispName(v.from)+' · '+formatDate(v.date)));
+    top.appendChild(body);
+    const del=el('button','iconbtn', icon('trash'));
+    del.title='delete';
+    del.onclick=()=>{
+      if(!confirm('Delete this voice message?')) return;
+      const i=root.voice.findIndex(x=>x.id===v.id);
+      if(i>-1) root.voice.splice(i,1);
+      scheduleSave();
+      route('voice');
+    };
+    top.appendChild(del);
+    card.appendChild(top);
+    const a=el('audio'); a.controls=true; a.preload='none'; a.src=v.url;
+    a.onplay=()=>{
+      if(!v.read){
+        v.read=true; scheduleSave();
+        card.classList.remove('unread');
+        const d=card.querySelector('.dot'); if(d) d.remove();
+      }
+    };
+    card.appendChild(a);
+    page.appendChild(card);
+  });
 }
 
 /* ============================================================
@@ -916,7 +1143,7 @@ function openLetterView(letter, page){
   paper.appendChild(actions);
 
   const top=el('div','lp-top');
-  top.appendChild(el('span','lp-from','From '+dispName(letter.from)));
+  top.appendChild(el('span','lp-from'+(letter.from==='Mine'?' mine':''),'From '+dispName(letter.from)));
   paper.appendChild(top);
   paper.appendChild(el('h2',null, escapeHtml(letter.subject)));
   paper.appendChild(el('div','lp-date', formatDate(letter.date)));
