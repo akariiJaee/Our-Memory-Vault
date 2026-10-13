@@ -13,6 +13,25 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Memory Vault">  
 <script>try{if(localStorage.getItem('vault-theme-last')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+
+
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      serviceWorkerPath: "/Our-Memory-Vault/onesignal/OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/Our-Memory-Vault/onesignal/" },
+      appId: "d4d0137c-4256-43c1-b49d-73f60322520c",
+      safari_web_id: "web.onesignal.auto.1592f4e8-7629-48b3-b916-fa35b5011e11",
+      notifyButton: {
+        enable: true
+      }
+    });
+  });
+</script>
+
 </head>
 <body>
 
